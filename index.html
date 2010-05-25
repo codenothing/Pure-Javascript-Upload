@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Pure Javascript Upload [VERSION]</title>
+	<link rel='stylesheet' type='text/css' href='styles.css' />
+	<script type='text/javascript' src='upload.js'></script>
+	<script type='text/javascript' src='js.js'></script>
+</head>
+<body>
+
+<!--
+	Pure Javascript Upload [VERSION]
+	An adaptation  of valums ajaxupload(http://valums.com/ajax-upload/)
+	[DATE]
+	Corey Hart @ http://www.codenothing.com
+-->
+
+	<div id='upload-wrapper'>
+		<h1>Pure Javascript Upload [VERSION]</h1>
+		<div id='drop-area'>
+			<div class='title'>Drag Files Into This Area</div>
+			<div class='files'></div>
+		</div>
+		<div id='input-upload'>
+			<h3>Upload Files:</h3>
+			<div class='input-list'>
+				<div class='upload-row'>
+					<input type='file' name='file1'>
+				</div>
+				<div class='upload-row'>
+					<input type='file' name='file2'>
+				</div>
+				<div class='upload-row'>
+					<input type='file' name='file3'>
+				</div>
+				<div class='upload-row'>
+					<input type='file' name='file4'>
+				</div>
+				<div class='upload-row'>
+					<input type='file' name='file5'>
+				</div>
+			</div>
+			<button id='upload-files'>Upload Files</button>
+		</div>
+		<div id='server-wrapper'>
+			<h3>Server Response:</h3>
+			<pre id='server-response'></pre>
+		</div>
+
+		<br clear='all' />
+		<div style='margin-top: 40px; font-size: 9pt;'>
+			<a href='http://www.codenothing.com/archives/2010/pure-javascript-upload/'>&laquo; Back to Original Article</a>
+		</div>
+	</div>
+</body>
+</html>

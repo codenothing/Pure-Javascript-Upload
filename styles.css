@@ -1,0 +1,69 @@
+/*
+ * Pure Upload [VERSION]
+ * An adaptation of valums ajaxupload(http://valums.com/ajax-upload/)
+ * [DATE]
+ * Corey Hart @ http://www.codenothing.com
+ */
+h3 {
+	margin: 0;
+	padding: 0;
+}
+
+#upload-wrapper {
+	width: 800px;
+	margin: 20px auto;
+}
+
+#drop-area {
+	display: none;
+	background: #4cfa6f;
+	border: 4px solid #05d62f;
+	text-align: center;
+	padding: 50px 0;
+	margin: 30px 0;
+	color: white;
+	font-size: 16pt;
+}
+
+#drop-area.hover {
+	border: 4px solid #fbea56;
+	color: #fbea56;
+}
+
+#input-upload {
+	float: left;
+	width: 46%;
+	height: 250px;
+	background: #f2f2f2;
+	border: 2px solid #d6d6d6;
+	padding: 10px;
+}
+
+#server-wrapper {
+	float: left;
+	width: 46%;
+	height: 250px;
+	margin-left: 2%;
+	background: #f2f2f2;
+	border: 2px solid #d6d6d6;
+	padding: 10px;
+	overflow: auto;
+}
+
+#server-wrapper.success {
+	background: #cdfed5;
+	border: 2px solid #88fc9b;
+}
+
+#server-wrapper.error {
+	background: #fedcdd;
+	border: 2px solid #fda1a2;
+}
+
+#server-response {
+	font-size: 9pt;
+}
+
+.upload-row {
+	margin: 10px 0;
+}
