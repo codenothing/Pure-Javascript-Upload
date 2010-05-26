@@ -1,16 +1,18 @@
 /*
- * Pure Upload [VERSION]
+ * Pure Javascript Upload [VERSION]
  * An adaptation of valums ajaxupload(http://valums.com/ajax-upload/)
  * [DATE]
  * Corey Hart @ http://www.codenothing.com
  */
 (function( window, document, Upload, undefined ) {
 
+
 // Workspace Globals
 
-var serverResponse, serverWrapper, uploadWrapper;
+var serverResponse, serverWrapper, uploadWrapper, json;
 
-// Upload Handler
+
+// Upload Action Direction
 
 Upload.defaults.action = 'upload.php';
 
@@ -64,7 +66,7 @@ function addClass( elem, value ) {
 			elem.className = trim( value );
 		}
 		else if ( elem.className.indexOf( value ) === -1 ) {
-			elem.className += trim( ' ' + value );
+			elem.className = trim( elem.className + ' ' + value );
 		}
 	}
 }
@@ -73,12 +75,31 @@ function addClass( elem, value ) {
 function removeClass( elem, value ) {
 	if ( elem.nodeType === 1 ) {
 		if ( elem.className.indexOf( value ) !== -1 ) {
-			elem.className += trim( elem.className.removeClass( value, '' ) );
+			elem.className = trim( elem.className.replace( value, '' ) );
 		}
 	}
 }
 
+function clearResponse(){
+	removeClass( serverWrapper, 'error' );
+	removeClass( serverWrapper, 'success' );
+	addClass( serverWrapper, 'loading' );
+	serverResponse.innerHTML = '';
+}
+
+function addResponse( success, result ) {
+	removeClass( serverWrapper, 'loading' );
+	removeClass( serverWrapper, 'error' );
+	removeClass( serverWrapper, 'success' );
+	addClass( serverWrapper, success ? 'success' : 'error' );
+	serverResponse.innerHTML = result || '';
+}
+
+
+
+
 // Adding Drag And Drop behavior
+
 function DragFiles(){
 	var drop = document.getElementById('drop-area');
 
@@ -107,27 +128,41 @@ function DragFiles(){
 		if ( drop.className.indexOf( 'hover' ) > -1 ) {
 			drop.className = drop.className.replace( /hover/, '' );
 		}
+
 		// List of files
 		var files = event.dataTransfer.files;
 
 		// Extra post data
 		var data = {
+			JSON: !!json.checked,
 			postVar1: 'miscData'
 		};
 
 		// Settings and callbacks
 		var settings = {
+			JSON: data.JSON,
 			success: function( result ) {
-				removeClass( serverWrapper, 'error' );
-				addClass( serverWrapper, 'success' );
-				serverResponse.innerHTML = result;
+				if ( data.JSON ) {
+					if ( window.console ) {
+						console.log( 'Upload Response:', result );
+					}
+					result = "Check your console\n\n" + this.response;
+				}
+				addResponse( true, result );
 			},
 			error: function( result ){
-				removeClass( serverWrapper, 'success' );
-				addClass( serverWrapper, 'error' );
-				serverResponse.innerHTML = result;
+				if ( data.JSON ) {
+					if ( window.console ) {
+						console.log( 'Upload Response:', result );
+					}
+					result = "Check your console\n\n" + this.response;
+				}
+				addResponse( false, result );
 			}
 		};
+
+		// Clear response area
+		clearResponse();
 
 		Upload( event.dataTransfer.files, data, settings );
 		return false;
@@ -135,7 +170,10 @@ function DragFiles(){
 }
 
 
+
+
 // Wait for window load (use DOM Ready handler if access to framework is provided)
+
 window.onload = function(){
 	// Enable drag and drop files from desktop if allowed
 	if ( Upload.NativeUpload ) {
@@ -146,6 +184,7 @@ window.onload = function(){
 	serverResponse = document.getElementById('server-response');
 	serverWrapper = document.getElementById('server-wrapper');
 	uploadWrapper = document.getElementById('input-upload');
+	json = document.getElementById('json');
 
 	// Upload files through file inputs
 	document.getElementById('upload-files').onclick = function(){
@@ -154,22 +193,35 @@ window.onload = function(){
 
 		// Extra post data
 		var data = {
+			JSON: !!json.checked,
 			postVar1: 'miscData'
 		};
 
 		// Settings and callbacks
 		var settings = {
+			JSON: data.JSON,
 			success: function( result ) {
-				removeClass( serverWrapper, 'error' );
-				addClass( serverWrapper, 'success' );
-				serverResponse.innerHTML = result;
+				if ( data.JSON ) {
+					if ( window.console ) {
+						console.log( 'Upload Response:', result );
+					}
+					result = "Check your console\n\n" + this.response;
+				}
+				addResponse( true, result );
 			},
-			error: function( result ) {
-				removeClass( serverWrapper, 'success' );
-				addClass( serverWrapper, 'error' );
-				serverResponse.innerHTML = result;
+			error: function( result ){
+				if ( data.JSON ) {
+					if ( window.console ) {
+						console.log( 'Upload Response:', result );
+					}
+					result = "Check your console\n\n" + this.response;
+				}
+				addResponse( false, result );
 			}
 		};
+
+		// Clear response area
+		clearResponse();
 
 		// Action has already been defined
 		Upload( files, data, settings );

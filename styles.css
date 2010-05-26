@@ -1,5 +1,5 @@
 /*
- * Pure Upload [VERSION]
+ * Pure Javascript Upload [VERSION]
  * An adaptation of valums ajaxupload(http://valums.com/ajax-upload/)
  * [DATE]
  * Corey Hart @ http://www.codenothing.com
@@ -7,6 +7,10 @@
 h3 {
 	margin: 0;
 	padding: 0;
+}
+
+label {
+	font-size: 9pt;
 }
 
 #upload-wrapper {
@@ -48,6 +52,12 @@ h3 {
 	border: 2px solid #d6d6d6;
 	padding: 10px;
 	overflow: auto;
+}
+
+#server-wrapper.loading {
+	background-image: url(spinner.gif);
+	background-position: center center;
+	background-repeat: no-repeat;
 }
 
 #server-wrapper.success {

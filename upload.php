@@ -1,6 +1,6 @@
 <?php
 /*
- * Pure Upload [VERSION]
+ * Pure Javascript Upload [VERSION]
  * An adaptation of valums ajaxupload(http://valums.com/ajax-upload/)
  * [DATE]
  * Corey Hart @ http://www.codenothing.com
@@ -19,6 +19,11 @@ foreach ( $_FILES as $file ) {
 	));
 }
 
-print_r( $result );
+// Return JSON Encoded result if wanted
+if ( $_POST['JSON'] == 'true' ) {
+	echo json_encode( $result );
+} else {
+	print_r( $result );
+}
 
 ?>

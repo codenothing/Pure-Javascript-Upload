@@ -1,5 +1,5 @@
 /*
- * Pure Upload [VERSION]
+ * Pure Javascript Upload [VERSION]
  * An adaptation of valums ajaxupload(http://valums.com/ajax-upload/)
  * [DATE]
  * Corey Hart @ http://www.codenothing.com
@@ -62,7 +62,7 @@ function each( items, scope, fn ) {
 }
 
 
-// JSON Converter
+// JSON Converte
 function toJSON( str ) {
 	str = str || '';
 	return window.JSON && window.JSON.parse ? window.JSON.parse( str ) : eval( '(' + str + ')' );
@@ -78,10 +78,23 @@ function Upload( files, data, action, settings ) {
 		files = [ files ];
 	}
 
-	// Organize parameters (only action isn't required, but data and settings are)
+	// Missing action parameter
 	if ( settings === undefined && typeof action == 'object' ) {
 		settings = action;
 		action = undefined;
+	}
+
+	// Missing data parameter
+	if ( typeof data == 'string' ) {
+		action = data;
+		data = undefined;
+	}
+
+	// Since there can only be one level of data, we can assume that if the
+	// data object is really the settings object if the success method is a function
+	if ( typeof data == 'object' && typeof data.success == 'function' ) {
+		settings = data;
+		data = undefined;
 	}
 
 	// Store arguments on Upload object for reuse
@@ -89,13 +102,14 @@ function Upload( files, data, action, settings ) {
 	self.data = data || {};
 	self.action = action || Defaults.action;
 	self.settings = settings || {};
+	self.counter = 0;
 
 	// Run quick error check
 	if ( ! self.files || ! self.files.length ) {
-		( self.settings.error || Upload.error )( 'No files could be found' );
+		( self.settings.error || Upload.error ).call( self, 'No files could be found' );
 	}
 	else if ( typeof self.action != 'string' || ! self.action.length ) {
-		( self.settings.error || Upload.error )( 'Invalid action' );
+		( self.settings.error || Upload.error ).call( self, 'Invalid action' );
 	}
 	else {
 		// Start building process
@@ -107,10 +121,9 @@ function Upload( files, data, action, settings ) {
 // Browsers that support native file upload reap the benefits
 var NativeUpload = {
 	abort: function(){
-		this.aborting = true;
 		each( this.read, function( i, read ) {
 			if ( read.complete === false ) {
-				read.abort();
+				read.reader.abort.call( read.reader );
 			}
 		});
 	},
@@ -123,7 +136,6 @@ var NativeUpload = {
 				file: file,
 				name: file.fileName,
 				reader: reader,
-				abort: reader.abort,
 				guid: guid,
 				complete: false,
 				content: ''
@@ -148,14 +160,14 @@ var NativeUpload = {
 			if ( self.aborting === false ) {
 				self.abort();
 			}
-			// If we are in the process of aborting, don't trigger the error handler multiple time
+			// If we are in the process of manually aborting, don't trigger the error handler
 			else {
 				return;
 			}
 
-			// Inform Developer
+			// Dispatch error
 			if ( self.settings.error ) {
-				self.settings.error( 'Unable to read ' + file.fileName );
+				self.settings.error.call( self, 'Unable to read ' + file.fileName );
 			}
 		};
 
@@ -171,7 +183,7 @@ var NativeUpload = {
 		each( self.read, function( i, read ) {
 			var file = read.file;
 			source += "--" + self.boundary  + "\r\n";
-			source += "Content-Disposition: form-data; name='" + Defaults.prefix + i + "'; filename='" + file.fileName + "'\r\n";
+			source += "Content-Disposition: form-data; name='" + Defaults.prefix + (++self.counter) + "'; filename='" + file.fileName + "'\r\n";
 			source += "Content-Type: " + file.type + "\r\n\r\n";
 			source += read.content + "\r\n";
 		});
@@ -191,6 +203,8 @@ var NativeUpload = {
 
 	request: function(){
 		var self = this, source = self.source(), xhr = self.xhr = new XMLHttpRequest();
+
+		// Setup request headers
 		xhr.open( 'POST', self.action, true );
 		xhr.setRequestHeader( 'Content-Type', 'multipart/form-data; boundary=' + self.boundary );
 		xhr.setRequestHeader( 'Content-Length', source.length );
@@ -203,19 +217,20 @@ var NativeUpload = {
 				// Anything in the 200's is a successful request, and 304 is a cached successful request
 				if ( ( xhr.status >= 200 && xhr.status < 301 ) || xhr.status === 304 ) {
 					if ( self.settings.success ) {
-						self.settings.success(
+						self.settings.success.call(
+							self,
 							self.settings.JSON ? toJSON( self.response ) : self.response
 						);
 					}
 				}
 				else if ( self.settings.error ) {
-					self.settings.error( self.response );
+					self.settings.error.call( self, self.response );
 				}
 			}
 		};
 
-		// File reading is finished, transfer the xhr abort method
-		// to upload abort method
+		// File reading is finished, transfer the 
+		// xhr abort method to xhr abort method
 		self.abort = xhr.abort;
 
 		// Start the request
@@ -254,22 +269,27 @@ var NativeUpload = {
 // Older browsers have to rely on form to iframe submission
 var FrameUpload = {
 	abort: function(){
-		self.blank = true;
+		var self = this;
+
 		// Cancel the current frame load by loading the blank source
 		if ( self.frame ) {
+			self.blank = true;
 			self.frame.src = "javascript:'<html></html>';";
+			if ( self.settings.error ) {
+				self.settings.error.call( self, 'Upload canceled' );
+			}
 		}
 	},
 
 	// Webkit wont let you copy over the file input value, so we need
 	// to pull each file out and replace with a copy of the node. This
-	// reduces damage to the ui, and only leaves blank, uncached inputs
+	// reduces damage to the ui, and only leaves cloned, uncached inputs
 	fileExtraction: function( i, input ) {
 		var par = input.parentNode;
 		if ( par && input.value ) {
 			par.insertBefore( input.cloneNode( true ), input );
 			par.removeChild( input );
-			input.name = Defaults.prefix + Guid();
+			input.name = Defaults.prefix + (++this.counter);
 			this.form.appendChild( input );
 		}
 	},
@@ -295,7 +315,9 @@ var FrameUpload = {
 			if ( self.blank ) {
 				// Fix busy state in FF3
 				setTimeout(function(){
-					self.frame.parentNode.removeChild( self.frame );
+					if ( self.frame ) {
+						self.frame.parentNode.removeChild( self.frame );
+					}
 				}, 0);
 			}
 			return;
@@ -322,7 +344,7 @@ var FrameUpload = {
 
 		// Delay opera to allow for full frame load
 		// TODO: Find out why this is needed
-		if ( window.opera && ! stalled ) {
+		if ( window.opera && stalled !== true ) {
 			setTimeout(function(){
 				self.load( true );
 			}, 100);
@@ -348,9 +370,6 @@ var FrameUpload = {
 				if ( ( child = doc.body.firstChild ) && child.nodeName.toUpperCase() === 'PRE' && child.firstChild ) {
 					self.response = child.firstChild.nodeValue;
 				}
-
-				// Turn JSON into object
-				self.response = self.settings.JSON ? toJSON( self.response ) : self.response;
 			}
 		}
 		else {
@@ -360,7 +379,10 @@ var FrameUpload = {
 
 		// A successful response is one that returns (headers are ignored)
 		if ( self.settings.success ) {
-			self.settings.success( self.response );
+			self.settings.success.call(
+				self,
+				self.settings.JSON && typeof self.response == 'string' ? toJSON( self.response ) : self.response
+			);
 		}
 
 		// Reload blank page, so that reloading main page
@@ -415,6 +437,7 @@ window.Upload.error = Upload.error = function( msg ) {
 
 
 // Determine native or frame hack for uploads
+// requires FileReader & XHR API
 window.Upload.NativeUpload = Upload.NativeUpload = !!( 'FileReader' in window && 'XMLHttpRequest' in window );
 
 
