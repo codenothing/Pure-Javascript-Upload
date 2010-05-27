@@ -12,11 +12,6 @@
 var serverResponse, serverWrapper, uploadWrapper, json;
 
 
-// Upload Action Direction
-
-Upload.defaults.action = 'upload.php';
-
-
 // Utility Functions
 
 function each( items, scope, fn ) {
@@ -237,4 +232,4 @@ window.onload = function(){
 };
 
 
-})( this, this.document, this.Upload );
+})( this, this.document, Upload );

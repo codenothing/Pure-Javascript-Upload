@@ -77,3 +77,48 @@ label {
 .upload-row {
 	margin: 10px 0;
 }
+
+
+/* Documentation */
+h2 {
+	margin: 40px 0 0 0;
+}
+
+h4 {
+	background: #eee;
+	margin: 40px 0 10px 0;
+	padding: 10px;
+	font-size: 16pt;
+	font-weight: bold;
+	color: #444;
+}
+
+h5 {
+	background: #f1f1f1;
+	color: #555;
+	margin: 0;
+	padding: 5px;
+	font-size: 12pt;
+	font-weight: normal;
+}
+
+h5 span {
+	font-weight: bold;
+	font-size: 14pt;
+}
+
+#docs {
+	font-size: 12pt;
+}
+
+#docs ul {
+	list-style: none;
+	margin: 10px 0 0 0;
+	padding: 0;
+}
+
+#docs ul li {
+	margin: 20px 40px;
+	width: 400px;
+	padding: 0;
+}

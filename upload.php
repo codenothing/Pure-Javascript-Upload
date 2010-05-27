@@ -11,12 +11,12 @@ $result = array(
 );
 
 // Limit info shown
-foreach ( $_FILES as $file ) {
-	array_push( $result['Files'], array(
+foreach ( $_FILES as $key => $file ) {
+	$result['Files'][ $key ] = array(
 		'name' => $file['name'],
 		'type' => $file['type'],
 		'size' => $file['size'],
-	));
+	);
 }
 
 // Return JSON Encoded result if wanted

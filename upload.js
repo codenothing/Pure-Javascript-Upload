@@ -8,13 +8,15 @@
 
 
 // Defaults (gets converted to Upload.defaults later on)
+
 var Defaults = {
-	action: '',
+	action: 'upload.php',
 	prefix: 'file-'
 };
 
 
-// Quick element creation
+// Quick element addition
+
 var Add = (function(){
 	var div = document.createElement('div'), el;
 	return function( html ) {
@@ -30,15 +32,17 @@ var Add = (function(){
 
 
 // Unique ID Creation
+
 var Guid = (function(){
 	var id = ( new Date() ).getTime();
 	return function(){
-		return 'PureUpload-' + (++id);
+		return 'PureJavascriptUpload-' + (++id);
 	};
 })();
 
 
 // Looping Utility
+
 function each( items, scope, fn ) {
 	var i = -1, l = items.length;
 
@@ -62,64 +66,58 @@ function each( items, scope, fn ) {
 }
 
 
-// JSON Converte
+// JSON Conversion
+
 function toJSON( str ) {
 	str = str || '';
 	return window.JSON && window.JSON.parse ? window.JSON.parse( str ) : eval( '(' + str + ')' );
 }
 
 
-// Upload Handler
-function Upload( files, data, action, settings ) {
-	var self = this;
 
-	// We allow single file uploads, so we must force array object when needed
-	if ( files && ! files.length ) {
-		files = [ files ];
-	}
 
-	// Missing action parameter
-	if ( settings === undefined && typeof action == 'object' ) {
-		settings = action;
-		action = undefined;
-	}
+// Browsers that support native file upload reap the benefits
 
-	// Missing data parameter
-	if ( typeof data == 'string' ) {
-		action = data;
-		data = undefined;
-	}
+function NativeUpload ( files, data, action, settings ) {
+	var self = this, stack = [];
 
-	// Since there can only be one level of data, we can assume that if the
-	// data object is really the settings object if the success method is a function
-	if ( typeof data == 'object' && typeof data.success == 'function' ) {
-		settings = data;
-		data = undefined;
-	}
+	console.warn( self );
 
-	// Store arguments on Upload object for reuse
+	// Store arguments
 	self.files = files;
 	self.data = data || {};
 	self.action = action || Defaults.action;
 	self.settings = settings || {};
-	self.counter = 0;
 
-	// Run quick error check
-	if ( ! self.files || ! self.files.length ) {
-		( self.settings.error || Upload.error ).call( self, 'No files could be found' );
-	}
-	else if ( typeof self.action != 'string' || ! self.action.length ) {
-		( self.settings.error || Upload.error ).call( self, 'Invalid action' );
-	}
-	else {
-		// Start building process
-		self.build();
-	}
+	// Store Instance Vars
+	self.counter = 0;
+	self.read = {};
+	self.xhr = undefined;
+	self.aborting = false;
+	self.boundary = '';
+	self.response = '';
+
+	// Create a new stack 
+	each( self.files, function( i, file ) {
+		if ( file.files && file.files[ 0 ] ) {
+			each( file.files, function( i, entry ) {
+				stack.push( entry );
+			});
+		}
+		else if ( file.fileName ) {
+			stack.push( file );
+		}
+	});
+
+	// Track stack length for source request
+	self.length = stack.length;
+
+	// Read each file
+	each( stack, self, self.readFile );
 }
 
+NativeUpload.prototype = {
 
-// Browsers that support native file upload reap the benefits
-var NativeUpload = {
 	abort: function(){
 		each( this.read, function( i, read ) {
 			if ( read.complete === false ) {
@@ -235,39 +233,53 @@ var NativeUpload = {
 
 		// Start the request
 		xhr.sendAsBinary( source );
-	},
-
-	build: function(){
-		var self = this, stack = [];
-
-		// Define Object Vars
-		self.read = {};
-		self.xhr = undefined;
-		self.aborting = false;
-
-		// Create a new stack 
-		each( self.files, function( i, file ) {
-			if ( file.files && file.files[ 0 ] ) {
-				each( file.files, function( i, entry ) {
-					stack.push( entry );
-				});
-			}
-			else if ( file.fileName ) {
-				stack.push( file );
-			}
-		});
-
-		// Track stack length for source request
-		self.length = stack.length;
-
-		// Read each file
-		each( stack, self, self.readFile );
 	}
+
 };
 
 
+
+
 // Older browsers have to rely on form to iframe submission
-var FrameUpload = {
+
+function FrameUpload( files, data, action, settings ) {
+	var self = this, load = function(){
+		self.load();
+	};
+
+	// Store arguments
+	self.files = files;
+	self.data = data || {};
+	self.action = action || Defaults.action;
+	self.settings = settings || {};
+
+	// Store Instance Vars
+	self.response = '';
+	self.blank = false;
+	self.guid = Guid();
+
+	// Create the frame and form
+	self.frame = Add("<iframe src='javascript:false;' name='" + self.guid + "' id='" + self.guid + "' style='display:none;'></iframe>");
+	self.form = Add("<form action='" + self.action + "' method='POST' target='" + self.guid + "' style='display:none;' enctype='multipart/form-data'></form>");
+
+	// Add files and metadata
+	each( self.files, self, self.fileExtraction );
+	each( self.data, self, self.addData );
+
+	// Submit the form and wait for response
+	if ( self.frame.attachEvent ) {
+		self.frame.attachEvent( 'onload', load );
+	} else {
+		self.frame.addEventListener( 'load', load, false );
+	}
+	self.form.submit();
+
+	// Cleanup
+	self.form.parentNode.removeChild( self.form );
+}
+
+FrameUpload.prototype = {
+
 	abort: function(){
 		var self = this;
 
@@ -389,46 +401,72 @@ var FrameUpload = {
 		// does not re-submit the post. 
 		self.blank = true;
 		self.frame.src = "javascript:'<html></html>';";
-	},
-
-	build: function(){
-		var self = this, load = function(){
-			self.load();
-		};
-
-		// Create the frame and form
-		self.blank = false;
-		self.guid = Guid();
-		self.frame = Add("<iframe src='javascript:false;' name='" + self.guid + "' id='" + self.guid + "' style='display:none;'></iframe>");
-		self.form = Add("<form action='" + self.action + "' method='POST' target='" + self.guid + "' style='display:none;' enctype='multipart/form-data'></form>");
-
-		// Add files and metadata
-		each( self.files, self, self.fileExtraction );
-		each( self.data, self, self.addData );
-
-		// Submit the form and wait for response
-		if ( self.frame.attachEvent ) {
-			self.frame.attachEvent( 'onload', load );
-		} else {
-			self.frame.addEventListener( 'load', load, false );
-		}
-		self.form.submit();
-
-		// Cleanup
-		self.form.parentNode.removeChild( self.form );
 	}
+
 };
 
 
 
 // Expose Upload function
-window.Upload = function( files, data, action, settings ) {
-	return new Upload( files, data, action, settings );
+var Upload = window.Upload = function( files, data, action, settings ) {
+	var error;
+
+	// We allow single file uploads, so we must force array object when needed
+	if ( files && ! files.length ) {
+		files = [ files ];
+	}
+
+	// Missing action parameter
+	if ( settings === undefined && typeof action == 'object' ) {
+		settings = action;
+		action = undefined;
+	}
+
+	// Missing data parameter
+	if ( typeof data == 'string' ) {
+		action = data;
+		data = undefined;
+	}
+
+	// Since there can only be one level of data, we can assume that if the
+	// data object is really the settings object if the success method is a function
+	if ( typeof data == 'object' && typeof data.success == 'function' ) {
+		settings = data;
+		data = undefined;
+	}
+	
+	// Clear undefined's
+	files = files;
+	data = data || {};
+	action = action || Defaults.action;
+	settings = settings || {};
+
+	// Run quick error check
+	if ( ! files || ! files.length ) {
+		error = 'No files could be found';
+	}
+	else if ( typeof action != 'string' || ! action.length ) {
+		error = 'Invalid action';
+	}
+
+	return error ?
+		// Dispatch error if found
+		( settings.error || Upload.error ).call( { response: '' }, error ) :
+
+		// Start upload process
+		new handler( files, data, action, settings );
 };
 
 
+// Determine native or frame hack for uploads
+// requires FileReader & XHR API
+
+Upload.NativeUpload = !!( 'FileReader' in window );
+
+
 // Global Error Handler
-window.Upload.error = Upload.error = function( msg ) {
+
+Upload.error = function( msg ) {
 	msg = typeof msg == 'string' ? new Error( msg ) : msg;
 	if ( fn === undefined ) {
 		throw msg;
@@ -436,17 +474,14 @@ window.Upload.error = Upload.error = function( msg ) {
 };
 
 
-// Determine native or frame hack for uploads
-// requires FileReader & XHR API
-window.Upload.NativeUpload = Upload.NativeUpload = !!( 'FileReader' in window && 'XMLHttpRequest' in window );
-
-
 // Push defaults onto Upload constructor
-window.Upload.defaults = Upload.defaults = Defaults;
+
+Upload.defaults = Defaults;
 
 
-// Push native/framehack objectives onto the upload prototype
-Upload.prototype = Upload.NativeUpload ? NativeUpload : FrameUpload;
+// Store the handler based on the browser limitations
+
+var handler = Upload.NativeUpload ? NativeUpload : FrameUpload;
 
 
 })( this, this.document );
