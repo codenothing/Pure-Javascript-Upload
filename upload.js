@@ -15,6 +15,11 @@ var Defaults = {
 };
 
 
+// Gets set later, controls which upload method to use
+
+var handler;
+
+
 // Quick element addition
 
 var Add = (function(){
@@ -65,6 +70,37 @@ function each( items, scope, fn ) {
 	}
 }
 
+// Simplified success/complete handler
+
+function success( instance ) {
+	var succes = instance.settings.success, complete = instance.settings.complete;
+
+	if ( success ) {
+		success.call(
+			instance,
+			instance.settings.JSON ? toJSON( instance.response ) : instance.response
+		);
+	}
+
+	if ( complete ) {
+		complete.call( instance, instance.response );
+	}
+}
+
+// Simplified error handler
+
+function error( instance, e ) {
+	var err = instance.settings.error, complete = instance.settings.complete;
+
+	if ( err ) {
+		err.call( instance, e || instance.response );
+	}
+
+	if ( complete ) {
+		compete.call( instance, e || instance.response );
+	}
+}
+
 
 // JSON Conversion
 
@@ -81,13 +117,11 @@ function toJSON( str ) {
 function NativeUpload ( files, data, action, settings ) {
 	var self = this, stack = [];
 
-	console.warn( self );
-
 	// Store arguments
 	self.files = files;
-	self.data = data || {};
-	self.action = action || Defaults.action;
-	self.settings = settings || {};
+	self.data = data;
+	self.action = action;
+	self.settings = settings;
 
 	// Store Instance Vars
 	self.counter = 0;
@@ -96,16 +130,22 @@ function NativeUpload ( files, data, action, settings ) {
 	self.aborting = false;
 	self.boundary = '';
 	self.response = '';
+	self.length = files.length;
 
 	// Create a new stack 
 	each( self.files, function( i, file ) {
 		if ( file.files && file.files[ 0 ] ) {
-			each( file.files, function( i, entry ) {
-				stack.push( entry );
+			// Handle multiple files in single input
+			self.length += file.files.length;
+
+			each( file.files, function( j, entry ) {
+				if ( entry && entry.fileName ) {
+					self.readFile( entry );
+				}
 			});
 		}
 		else if ( file.fileName ) {
-			stack.push( file );
+			self.readFile( file );
 		}
 	});
 
@@ -126,7 +166,7 @@ NativeUpload.prototype = {
 		});
 	},
 
-	readFile: function( i, file ) {
+	readFile: function( file ) {
 		// Reader Object
 		var self = this, reader = new FileReader(), guid = Guid(), 
 			// Create a reference
@@ -156,6 +196,7 @@ NativeUpload.prototype = {
 
 			// Kill all operations (but make sure we aren't already doing that)
 			if ( self.aborting === false ) {
+				self.aborting = true;
 				self.abort();
 			}
 			// If we are in the process of manually aborting, don't trigger the error handler
@@ -164,9 +205,7 @@ NativeUpload.prototype = {
 			}
 
 			// Dispatch error
-			if ( self.settings.error ) {
-				self.settings.error.call( self, 'Unable to read ' + file.fileName );
-			}
+			error( self, 'Unable to read ' + file.fileName );
 		};
 
 
@@ -214,15 +253,9 @@ NativeUpload.prototype = {
 
 				// Anything in the 200's is a successful request, and 304 is a cached successful request
 				if ( ( xhr.status >= 200 && xhr.status < 301 ) || xhr.status === 304 ) {
-					if ( self.settings.success ) {
-						self.settings.success.call(
-							self,
-							self.settings.JSON ? toJSON( self.response ) : self.response
-						);
-					}
-				}
-				else if ( self.settings.error ) {
-					self.settings.error.call( self, self.response );
+					success( self );
+				} else {
+					error( self );
 				}
 			}
 		};
@@ -239,6 +272,123 @@ NativeUpload.prototype = {
 
 
 
+// For chrome 5.x and safari 4.x
+
+function SingleUpload( files, data, action, settings ) {
+	var self = this;
+
+	// Store Arguments
+	self.files = files;
+	self.data = data;
+	self.action = action;
+	self.settings = settings;
+	self.length = files.length;
+
+	// Store specialized instance props
+	self.aborting = false;
+	self.response = [];
+	self.pack = [];
+	self.xhr = [];
+
+	// Build the action
+	self.params();
+
+	each( self.files, function( i, file ) {
+		if ( file.files && file.files.length ) {
+			// Handle multiple files in single input
+			self.length += file.files.length;
+
+			each( file.files, function( j, f ) {
+				if ( f && f.fileName ) {
+					self.send( f );
+				}
+			});
+		}
+		else if ( file.fileName ) {
+			self.send( file );
+		}
+		else {
+			self.length--;
+		}
+	});
+}
+
+SingleUpload.prototype = {
+
+	abort: function( e ) {
+		each( this.xhr, function( i, xhr ) {
+			if ( xhr.readyState !== 4 ) {
+				xhr.abort();
+			}
+		});
+	},
+
+	params: function(){
+		var self = this, noq = self.action.indexOf('?') === -1;
+
+		// Add each data pair as GET variables
+		each( self.data, function( name, value ) {
+			// Add query string notifier/separator based on the current action url
+			self.action += noq ? '?' : '&';
+			self.action += name + '=' + value;
+			noq = true;
+		});
+	},
+
+	send: function( file ) {
+		var self = this, xhr = new XMLHttpRequest();
+		self.xhr.push( xhr );
+
+		// Setup request headers
+		xhr.open( 'POST', self.action, true );
+		xhr.setRequestHeader( 'Content-Type', 'multipart/form-data' );
+		xhr.setRequestHeader( 'X-Requested-With', 'XMLHttpRequest' );
+		xhr.setRequestHeader( 'X-File-Name', file.fileName );
+		xhr.setRequestHeader( 'X-File-Size', file.fileSize );
+
+		// We use the upload onload handler and a timeout to let the full request process
+		// via: http://webreflection.blogspot.com/2009/03/safari-4-multiple-upload-with-progress.html
+		xhr.upload.onload = function(){
+			setTimeout(function(){
+				if ( xhr.readyState == 4 ) {
+					var response = xhr.responseText;
+					self.response += response;
+
+					// Anything in the 200's is a successful request, and 304 is a cached successful request
+					if ( ( xhr.status >= 200 && xhr.status < 301 ) || xhr.status === 304 ) {
+						// We push the result onto a stack ( where all file responses go )
+						self.pack.push(
+							self.settings.JSON ? toJSON( response ) : response
+						);
+
+						// Trigger success if final request
+						if ( --self.length < 1 ) {
+							success( self, true );
+						}
+					}
+					// Make sure we aren't in the process of aborting ()
+					else if ( self.aborting === false ) {
+						self.aborting = true;
+						self.abort();
+						error( self, response );
+					}
+				} else {
+					setTimeout( arguments.callee, 15 );
+				}
+			}, 15);
+		};
+
+		xhr.upload.onabort = xhr.upload.onerror = function(){
+			if ( self.aborting === false ) {
+				self.abort( xhr.responseText );
+			}
+		};
+
+		// Start the request
+		xhr.send( file );
+	}
+
+};
 
 // Older browsers have to rely on form to iframe submission
 
@@ -249,9 +399,9 @@ function FrameUpload( files, data, action, settings ) {
 
 	// Store arguments
 	self.files = files;
-	self.data = data || {};
-	self.action = action || Defaults.action;
-	self.settings = settings || {};
+	self.data = data;
+	self.action = action;
+	self.settings = settings;
 
 	// Store Instance Vars
 	self.response = '';
@@ -262,9 +412,27 @@ function FrameUpload( files, data, action, settings ) {
 	self.frame = Add("<iframe src='javascript:false;' name='" + self.guid + "' id='" + self.guid + "' style='display:none;'></iframe>");
 	self.form = Add("<form action='" + self.action + "' method='POST' target='" + self.guid + "' style='display:none;' enctype='multipart/form-data'></form>");
 
-	// Add files and metadata
-	each( self.files, self, self.fileExtraction );
-	each( self.data, self, self.addData );
+	// Webkit wont let you copy over the file input value, so we need
+	// to pull each file out and replace with a copy of the node. This
+	// reduces damage to the ui, and only leaves cloned, uncached inputs
+	each( self.files, function( i, elem ) {
+		var par = elem.parentNode;
+		if ( par && elem.value ) {
+			par.insertBefore( elem.cloneNode( true ), elem );
+			par.removeChild( elem );
+			elem.name = Defaults.prefix + (++self.counter);
+			self.form.appendChild( elem );
+		}
+	});
+
+	// Add Data
+	each( self.data, function( name, value ) {
+		var elem = document.createElement( 'input' );
+		elem.setAttribute( 'type', 'hidden' );
+		elem.setAttribute( 'name', name );
+		elem.setAttribute( 'value', value );
+		self.form.appendChild( elem );
+	});
 
 	// Submit the form and wait for response
 	if ( self.frame.attachEvent ) {
@@ -287,32 +455,8 @@ FrameUpload.prototype = {
 		if ( self.frame ) {
 			self.blank = true;
 			self.frame.src = "javascript:'<html></html>';";
-			if ( self.settings.error ) {
-				self.settings.error.call( self, 'Upload canceled' );
-			}
+			error( self, 'Upload canceled' );
 		}
-	},
-
-	// Webkit wont let you copy over the file input value, so we need
-	// to pull each file out and replace with a copy of the node. This
-	// reduces damage to the ui, and only leaves cloned, uncached inputs
-	fileExtraction: function( i, input ) {
-		var par = input.parentNode;
-		if ( par && input.value ) {
-			par.insertBefore( input.cloneNode( true ), input );
-			par.removeChild( input );
-			input.name = Defaults.prefix + (++this.counter);
-			this.form.appendChild( input );
-		}
-	},
-
-	// Adds data in the form of hidden inputs
-	addData: function( name, value ){
-		var elem = document.createElement( 'input' );
-		elem.setAttribute( 'type', 'hidden' );
-		elem.setAttribute( 'name', name );
-		elem.setAttribute( 'value', value );
-		this.form.appendChild( elem );
 	},
 
 	// Load handler
@@ -390,12 +534,7 @@ FrameUpload.prototype = {
 		}
 
 		// A successful response is one that returns (headers are ignored)
-		if ( self.settings.success ) {
-			self.settings.success.call(
-				self,
-				self.settings.JSON && typeof self.response == 'string' ? toJSON( self.response ) : self.response
-			);
-		}
+		success( self );
 
 		// Reload blank page, so that reloading main page
 		// does not re-submit the post. 
@@ -409,7 +548,7 @@ FrameUpload.prototype = {
 
 // Expose Upload function
 var Upload = window.Upload = function( files, data, action, settings ) {
-	var error;
+	var e;
 
 	// We allow single file uploads, so we must force array object when needed
 	if ( files && ! files.length ) {
@@ -443,15 +582,15 @@ var Upload = window.Upload = function( files, data, action, settings ) {
 
 	// Run quick error check
 	if ( ! files || ! files.length ) {
-		error = 'No files could be found';
+		e = 'No files could be found';
 	}
 	else if ( typeof action != 'string' || ! action.length ) {
-		error = 'Invalid action';
+		e = 'Invalid action';
 	}
 
-	return error ?
+	return e ?
 		// Dispatch error if found
-		( settings.error || Upload.error ).call( { response: '' }, error ) :
+		error( { response: '', settings: settings }, e ) :
 
 		// Start upload process
 		new handler( files, data, action, settings );
@@ -462,6 +601,7 @@ var Upload = window.Upload = function( files, data, action, settings ) {
 // requires FileReader & XHR API
 
 Upload.NativeUpload = !!( 'FileReader' in window );
+Upload.DragFiles = Upload.NativeUpload || !!( 'ondrag' in document );
 
 
 // Global Error Handler
@@ -474,14 +614,31 @@ Upload.error = function( msg ) {
 };
 
 
+// Since Chrome/Safari upload is difficult in that we can only send 1 file at a time, and forcing data as GET attributes,
+// this function is meant to create the same request/response on each of those browsers
+
+Upload.normalize = function(){
+	handler = FrameUpload;
+};
+
+
+// Configure the handler based on browser support
+
+Upload.unnormalize = function(){
+	handler = Upload.NativeUpload ? NativeUpload :
+		Upload.DragFiles ? SingleUpload :
+		FrameUpload;
+};
+
+
 // Push defaults onto Upload constructor
 
 Upload.defaults = Defaults;
 
 
-// Store the handler based on the browser limitations
+// Autotrigger handler config for the first time
 
-var handler = Upload.NativeUpload ? NativeUpload : FrameUpload;
+Upload.unnormalize();
 
 
 })( this, this.document );

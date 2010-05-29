@@ -18,4 +18,6 @@ Credits
 --------
 [Andrew Valumns](http://valums.com/ajax-upload/) - Original Author
 
+[Andrea Giammarchi](http://webreflection.blogspot.com/2009/03/safari-4-multiple-upload-with-progress.html) - Chrome/Safari Hack
+
 [Corey Hart](http://www.codenothing.com) - Creator of this adaptation

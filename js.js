@@ -171,7 +171,7 @@ function DragFiles(){
 
 window.onload = function(){
 	// Enable drag and drop files from desktop if allowed
-	if ( Upload.NativeUpload ) {
+	if ( Upload.DragFiles ) {
 		DragFiles();
 	}
 

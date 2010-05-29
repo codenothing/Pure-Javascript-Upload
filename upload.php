@@ -5,6 +5,11 @@
  * [DATE]
  * Corey Hart @ http://www.codenothing.com
  */
+
+print_r( $_SERVER );
+echo file_get_contents("php://input");
+exit();
+
 $result = array(
 	'Post Data' => $_POST,
 	'Files' => array(),
