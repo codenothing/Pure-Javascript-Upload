@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Pure Javascript Upload [VERSION]</title>
+	<link rel='stylesheet' type='text/css' href='../styles.css' />
+	<script type='text/javascript' src='jquery-1.4.2.js'></script>
+	<script type='text/javascript' src='../src/upload.js'></script>
+	<script type='text/javascript' src='js.js'></script>
+</head>
+<body>
+
+<!--
+	Pure Javascript Upload [VERSION]
+	An adaptation of valums ajaxupload(http://valums.com/ajax-upload/)
+	[DATE]
+	Corey Hart @ http://www.codenothing.com
+-->
+
+	<div id='upload-wrapper'>
+		<h1>Pure Javascript Upload [VERSION]</h1>
+		<div id='drop-area'>
+			<div class='title'>Drag Files Into This Area</div>
+			<div class='files'></div>
+		</div>
+		<div id='input-upload'>
+			<h3>Upload Files:</h3>
+			<label>
+				<input type='checkbox' name='normalize' id='normalize' /> Normalize
+			</label>
+			<label>
+				<input type='checkbox' name='json' id='json' /> JSON Response
+			</label>
+			<div class='input-list'>
+				<div class='upload-row'>
+					<input type='file' name='file1' multiple>
+				</div>
+				<div class='upload-row'>
+					<input type='file' name='file2' multiple>
+				</div>
+				<div class='upload-row'>
+					<input type='file' name='file3' multiple>
+				</div>
+				<div class='upload-row'>
+					<input type='file' name='file4' multiple>
+				</div>
+				<div class='upload-row'>
+					<input type='file' name='file5' multiple>
+				</div>
+			</div>
+			<button id='upload-files'>Upload Files</button>
+		</div>
+		<div id='server-wrapper'>
+			<h3>Server Response:</h3>
+			<pre id='server-response'></pre>
+		</div>
+
+		<br clear='all' />
+
+		
+		<h2>Documentation</h2>
+
+		<div id='docs'>
+
+			<h4 style='margin-top: 10px;'>Upload( files [, data, action, settings ] )</h4>
+
+			The Upload function takes 4 arguments, of which only the 'files' argument is required.
+			<ul>
+				<li>
+					<h5><span>files:</span> Array/Single Input, Array of File Objects</h5>
+					
+					The files argument handles multiple types. The first being an array of input elements, or
+					just a single input element. This is the default case where user has to click on an file type
+					input, browse their directory and select a file to upload. <br><br>
+
+					The second being an array of files used in a drag event off the 'event.dataTransfer.files' space,
+					or it can be just a single file object from that array.
+				</li>
+
+
+				<li>
+					<h5><span>data:</span> Object</h5>
+
+					The data argument is a single level object of key-value pairs to pass with the upload. Please remember
+					to only use simple types (String, Number, Boolean) only.
+				</li>
+
+
+				<li>
+					<h5><span>action:</span> String</h5>
+
+					The action argument contains the path of where to direct the upload to.
+				</li>
+
+				<li>
+					<h5><span>settings:</span> Object</h5>
+
+					The settings argument is an object containing the success and error callbacks, as well as the
+					JSON property defining whether to convert the response into an object or not.
+				</li>
+			</ul>
+
+
+			<h4>Upload.error</h4>
+			The Upload.error prop contains the global error handler function. Override this function for custom error handling.
+
+			<h4>Upload.DragFiles</h4>
+			This prop contains a boolean value defining the existence of file drag event in the browser.
+
+			<h4>Upload.NativeUpload</h4>
+			This prop contains a boolean value defining the existence of the FileReader API in the browser.
+
+			<h4>Upload.SingleUpload</h4>
+			This prop contains a boolean value defining the availability of XHR Upload and File Drag and Drop. This allows
+			the upload function to use native upload in chrome/safari, but forces single file uploads at a time.
+
+			<h4>Upload.normalize</h4>
+			Removes single file uploads option, forces frame hack on <b>all</b> browsers that don't support FileReader API.
+
+			<h4>Upload.unnormalize</h4>
+			Allows upload function to use single file uploads hack in chrome/safari.
+
+			<h4>Upload.defaults</h4>
+			There are only two defaults attached to the default prop.
+			<ul>
+				<li>
+					<h5><span>action:</span> String</h5>
+
+					Each upload instance defaults their action string to this global default when not set.
+				</li>
+
+				<li>
+					<h5><span>prefix:</span> String</h5>
+
+					This prop defines the prefix string attached to file reference name as they are uploaded
+				</li>
+			</ul>
+		</div>
+
+		<div style='margin-top: 40px; font-size: 9pt;'>
+			<a href='http://www.codenothing.com/archives/2010/pure-javascript-upload/'>&laquo; Back to Original Article</a>
+		</div>
+	</div>
+</body>
+</html>

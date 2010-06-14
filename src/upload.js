@@ -17,7 +17,7 @@ var Defaults = {
 
 // Gets set later, controls which upload method to use
 
-var handler;
+var isOpera = ( Object.prototype.toString.call( window.opera ) === '[object Opera]' ), handler;
 
 
 // Quick element addition
@@ -48,37 +48,34 @@ var Guid = (function(){
 
 // Looping Utility
 
-function each( items, scope, fn ) {
+function each( items, fn ) {
 	var i = -1, l = items.length;
 
-	if ( typeof scope == 'function' ) {
-		fn = scope;
-		scope = undefined;
-	}
-
-	if ( l !== undefined ) {
-		for ( ; ++i < l; ) {
-			fn.call( scope || items[ i ], i, items[ i ] );
+	if ( l === undefined ) {
+		for ( i in items ) {
+			fn.call( items[ i ], i, items[ i ] );
 		}
 	}
 	else {
-		for ( i in items ) {
-			if ( items.hasOwnProperty( i ) ) {
-				fn.call( scope || items[ i ], i, items[ i ] );
-			}
+		for ( ; ++i < l; ) {
+			fn.call( items[ i ], i, items[ i ] );
 		}
 	}
+
+	return items;
 }
 
 // Simplified success/complete handler
 
-function success( instance ) {
-	var succes = instance.settings.success, complete = instance.settings.complete;
+function success( instance, single ) {
+	var s = instance.settings.success, complete = instance.settings.complete;
 
-	if ( success ) {
-		success.call(
+	if ( s ) {
+		s.call(
 			instance,
-			instance.settings.JSON ? toJSON( instance.response ) : instance.response
+			single ? instance.pack : 
+				instance.settings.JSON ? toJSON( instance.response ) :
+				instance.response
 		);
 	}
 
@@ -115,7 +112,7 @@ function toJSON( str ) {
 // Browsers that support native file upload reap the benefits
 
 function NativeUpload ( files, data, action, settings ) {
-	var self = this, stack = [];
+	var self = this;
 
 	// Store arguments
 	self.files = files;
@@ -124,36 +121,28 @@ function NativeUpload ( files, data, action, settings ) {
 	self.settings = settings;
 
 	// Store Instance Vars
-	self.counter = 0;
 	self.read = {};
 	self.xhr = undefined;
 	self.aborting = false;
 	self.boundary = '';
 	self.response = '';
-	self.length = files.length;
+	self.length = 0;
 
-	// Create a new stack 
 	each( self.files, function( i, file ) {
+		// Handle multiple files in single input
 		if ( file.files && file.files[ 0 ] ) {
-			// Handle multiple files in single input
-			self.length += file.files.length;
-
 			each( file.files, function( j, entry ) {
 				if ( entry && entry.fileName ) {
+					self.length++;
 					self.readFile( entry );
 				}
 			});
 		}
 		else if ( file.fileName ) {
+			self.length++;
 			self.readFile( file );
 		}
 	});
-
-	// Track stack length for source request
-	self.length = stack.length;
-
-	// Read each file
-	each( stack, self, self.readFile );
 }
 
 NativeUpload.prototype = {
@@ -214,22 +203,22 @@ NativeUpload.prototype = {
 	},
 
 	source: function(){
-		var self = this, boundary = self.boundary = '----------------------------------------' + Guid(), source = '';
+		var self = this, boundary = self.boundary = '----------------------------------------' + Guid(), counter = 0, source = '';
 
 		// Add each file
 		each( self.read, function( i, read ) {
 			var file = read.file;
-			source += "--" + self.boundary  + "\r\n";
-			source += "Content-Disposition: form-data; name='" + Defaults.prefix + (++self.counter) + "'; filename='" + file.fileName + "'\r\n";
-			source += "Content-Type: " + file.type + "\r\n\r\n";
-			source += read.content + "\r\n";
+			source += "--" + self.boundary  + "\r\n" +
+				"Content-Disposition: form-data; name='" + Defaults.prefix + ( ++counter ) + "'; filename='" + file.fileName + "'\r\n" +
+				"Content-Type: " + file.type + "\r\n\r\n" +
+				read.content + "\r\n";
 		});
 
 		// Add any post-data provided
 		each( self.data, function( name, value ) {
-			source += "--" + self.boundary + "\r\n";
-			source += "Content-Disposition: form-data; name=" + name + "\r\n\r\n";	
-			source += value + "\r\n";
+			source += "--" + self.boundary + "\r\n" +
+				"Content-Disposition: form-data; name=" + name + "\r\n\r\n" +
+				value + "\r\n";
 		});
 
 		// The final boundary has 2 extra dashes before the line break
@@ -262,7 +251,9 @@ NativeUpload.prototype = {
 
 		// File reading is finished, transfer the 
 		// xhr abort method to xhr abort method
-		self.abort = xhr.abort;
+		self.abort = function(){
+			xhr.abort();
+		};
 
 		// Start the request
 		xhr.sendAsBinary( source );
@@ -282,7 +273,7 @@ function SingleUpload( files, data, action, settings ) {
 	self.data = data;
 	self.action = action;
 	self.settings = settings;
-	self.length = files.length;
+	self.length = 0;
 
 	// Store specialized instance props
 	self.aborting = false;
@@ -295,27 +286,23 @@ function SingleUpload( files, data, action, settings ) {
 
 	each( self.files, function( i, file ) {
 		if ( file.files && file.files.length ) {
-			// Handle multiple files in single input
-			self.length += file.files.length;
-
 			each( file.files, function( j, f ) {
 				if ( f && f.fileName ) {
+					self.length++;
 					self.send( f );
 				}
 			});
 		}
 		else if ( file.fileName ) {
+			self.length++;
 			self.send( file );
-		}
-		else {
-			self.length--;
 		}
 	});
 }
 
 SingleUpload.prototype = {
 
-	abort: function( e ) {
+	abort: function(){
 		each( this.xhr, function( i, xhr ) {
 			if ( xhr.readyState !== 4 ) {
 				xhr.abort();
@@ -324,14 +311,14 @@ SingleUpload.prototype = {
 	},
 
 	params: function(){
-		var self = this, noq = self.action.indexOf('?') === -1;
+		var self = this, query = self.action.indexOf('?') !== -1;
 
 		// Add each data pair as GET variables
 		each( self.data, function( name, value ) {
 			// Add query string notifier/separator based on the current action url
-			self.action += noq ? '?' : '&';
+			self.action += query ? '&' : '?';
 			self.action += name + '=' + value;
-			noq = true;
+			query = true;
 		});
 	},
 
@@ -349,7 +336,7 @@ SingleUpload.prototype = {
 		// We use the upload onload handler and a timeout to let the full request process
 		// via: http://webreflection.blogspot.com/2009/03/safari-4-multiple-upload-with-progress.html
 		xhr.upload.onload = function(){
-			setTimeout(function(){
+			(function checkReadyState(){
 				if ( xhr.readyState == 4 ) {
 					var response = xhr.responseText;
 					self.response += response;
@@ -361,7 +348,6 @@ SingleUpload.prototype = {
 							self.settings.JSON ? toJSON( response ) : response
 						);
 
-						// Trigger success if final request
 						if ( --self.length < 1 ) {
 							success( self, true );
 						}
@@ -373,14 +359,16 @@ SingleUpload.prototype = {
 						error( self, response );
 					}
 				} else {
-					setTimeout( arguments.callee, 15 );
+					setTimeout( checkReadyState, 15 );
 				}
-			}, 15);
+			})();
 		};
 
 		xhr.upload.onabort = xhr.upload.onerror = function(){
 			if ( self.aborting === false ) {
-				self.abort( xhr.responseText );
+				self.aborting = true;
+				self.abort();
+				error( self, xhr.responseText );
 			}
 		};
 
@@ -393,7 +381,7 @@ SingleUpload.prototype = {
 // Older browsers have to rely on form to iframe submission
 
 function FrameUpload( files, data, action, settings ) {
-	var self = this, load = function(){
+	var self = this, counter = 0, load = function(){
 		self.load();
 	};
 
@@ -413,14 +401,14 @@ function FrameUpload( files, data, action, settings ) {
 	self.form = Add("<form action='" + self.action + "' method='POST' target='" + self.guid + "' style='display:none;' enctype='multipart/form-data'></form>");
 
 	// Webkit wont let you copy over the file input value, so we need
-	// to pull each file out and replace with a copy of the node. This
-	// reduces damage to the ui, and only leaves cloned, uncached inputs
+	// to pull each input out and replace with a copy of the node. This
+	// reduces damage to the ui, and only produces cloned, uncached inputs
 	each( self.files, function( i, elem ) {
 		var par = elem.parentNode;
-		if ( par && elem.value ) {
+		if ( par && elem.value && elem.value !== '' ) {
 			par.insertBefore( elem.cloneNode( true ), elem );
 			par.removeChild( elem );
-			elem.name = Defaults.prefix + (++self.counter);
+			elem.name = Defaults.prefix + ( ++counter );
 			self.form.appendChild( elem );
 		}
 	});
@@ -500,7 +488,7 @@ FrameUpload.prototype = {
 
 		// Delay opera to allow for full frame load
 		// TODO: Find out why this is needed
-		if ( window.opera && stalled !== true ) {
+		if ( isOpera && stalled !== true ) {
 			setTimeout(function(){
 				self.load( true );
 			}, 100);
@@ -597,8 +585,7 @@ var Upload = window.Upload = function( files, data, action, settings ) {
 };
 
 
-// Determine native or frame hack for uploads
-// requires FileReader & XHR API
+// Flag browser capabilities on the exposed Upload Handler
 
 Upload.NativeUpload = !!( 'FileReader' in window );
 Upload.DragFiles = Upload.NativeUpload || !!( 'ondrag' in document );
@@ -618,7 +605,7 @@ Upload.error = function( msg ) {
 // this function is meant to create the same request/response on each of those browsers
 
 Upload.normalize = function(){
-	handler = FrameUpload;
+	handler = Upload.NativeUpload ? NativeUpload : FrameUpload;
 };
 
 
@@ -636,9 +623,9 @@ Upload.unnormalize = function(){
 Upload.defaults = Defaults;
 
 
-// Autotrigger handler config for the first time
+// Autotrigger handler config for the first time (Normalize for consistent behavior)
 
-Upload.unnormalize();
+Upload.normalize();
 
 
 })( this, this.document );

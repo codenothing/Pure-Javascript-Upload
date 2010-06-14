@@ -6,34 +6,34 @@
  */
 (function( window, document, Upload, undefined ) {
 
+// Set the default action
+
+Upload.defaults.action = '../upload.php';
+
 
 // Workspace Globals
 
-var serverResponse, serverWrapper, uploadWrapper, json;
+var serverResponse, serverWrapper, uploadWrapper, drop, norm, json;
+
 
 
 // Utility Functions
 
-function each( items, scope, fn ) {
+function each( items, fn ) {
 	var i = -1, l = items.length;
 
-	if ( typeof scope == 'function' ) {
-		fn = scope;
-		scope = undefined;
-	}
-
-	if ( l !== undefined ) {
-		for ( ; ++i < l; ) {
-			fn.call( scope || items[ i ], i, items[ i ] );
+	if ( l === undefined ) {
+		for ( i in items ) {
+			fn.call( items[ i ], i, items[ i ] );
 		}
 	}
 	else {
-		for ( i in items ) {
-			if ( items.hasOwnProperty( i ) ) {
-				fn.call( scope || items[ i ], i, items[ i ] );
-			}
+		for ( ; ++i < l; ) {
+			fn.call( items[ i ], i, items[ i ] );
 		}
 	}
+
+	return items;
 }
 
 
@@ -96,11 +96,6 @@ function addResponse( success, result ) {
 // Adding Drag And Drop behavior
 
 function DragFiles(){
-	var drop = document.getElementById('drop-area');
-
-	// Drop area is hidden by default
-	drop.style.display = 'block';
-
 	drop.ondragenter = function(){
 		if ( drop.className.indexOf( 'hover' ) === -1 ) {
 			drop.className += ' hover';
@@ -159,7 +154,7 @@ function DragFiles(){
 		// Clear response area
 		clearResponse();
 
-		Upload( event.dataTransfer.files, data, settings );
+		Upload( files, data, settings );
 		return false;
 	};
 }
@@ -170,16 +165,49 @@ function DragFiles(){
 // Wait for window load (use DOM Ready handler if access to framework is provided)
 
 window.onload = function(){
-	// Enable drag and drop files from desktop if allowed
+	// Cache Elements
+	serverResponse = document.getElementById('server-response');
+	serverWrapper = document.getElementById('server-wrapper');
+	uploadWrapper = document.getElementById('input-upload');
+	drop = document.getElementById('drop-area');
+	norm = document.getElementById('normalize');
+	json = document.getElementById('json');
+
 	if ( Upload.DragFiles ) {
 		DragFiles();
 	}
 
-	// Store server element to be used in many places
-	serverResponse = document.getElementById('server-response');
-	serverWrapper = document.getElementById('server-wrapper');
-	uploadWrapper = document.getElementById('input-upload');
-	json = document.getElementById('json');
+	// FF 3.6+ have the File API Implemented
+	if ( Upload.NativeUpload ) {
+		drop.style.display = 'block';
+		each( getFileInputs(), function( i, elem ) {
+			elem.setAttribute( 'multiple', 'true' );
+		});
+	}
+	// Latest WebKit has file drag implemented, but still no File API
+	// So we have a hackjob Single File Upload for those that want, otherwise
+	// we default to using the frame hack for those
+	else if ( Upload.DragFiles ) {
+		norm.parentNode.style.display = '';
+		norm.onchange = function(){
+			if ( norm.checked ) {
+				Upload.normalize();
+				drop.style.display = 'none';
+				each( getFileInputs(), function( i, elem ) {
+					if ( elem.getAttribute('multiple') ) {
+						elem.removeAttribute('multiple');
+					}
+				});
+			}
+			else {
+				Upload.unnormalize();
+				drop.style.display = 'block';
+				each( getFileInputs(), function( i, elem ) {
+					elem.setAttribute( 'multiple', 'true' );
+				});
+			}
+		};
+	}
 
 	// Upload files through file inputs
 	document.getElementById('upload-files').onclick = function(){

@@ -2,8 +2,8 @@
 <html>
 <head>
 	<title>Pure Javascript Upload [VERSION]</title>
-	<link rel='stylesheet' type='text/css' href='styles.css' />
-	<script type='text/javascript' src='upload.js'></script>
+	<link rel='stylesheet' type='text/css' href='../styles.css' />
+	<script type='text/javascript' src='../src/upload.js'></script>
 	<script type='text/javascript' src='js.js'></script>
 </head>
 <body>
@@ -23,6 +23,12 @@
 		</div>
 		<div id='input-upload'>
 			<h3>Upload Files:</h3>
+			<label style='display: none;'>
+				<input type='checkbox' name='normalize' id='normalize' checked='checked' /> Normalize
+			</label>
+			<label>
+				<input type='checkbox' name='json' id='json' /> JSON Response
+			</label>
 			<div class='input-list'>
 				<div class='upload-row'>
 					<input type='file' name='file1'>
@@ -41,9 +47,6 @@
 				</div>
 			</div>
 			<button id='upload-files'>Upload Files</button>
-			<label>
-				<input type='checkbox' name='json' id='json' /> JSON Response
-			</label>
 		</div>
 		<div id='server-wrapper'>
 			<h3>Server Response:</h3>
@@ -97,10 +100,23 @@
 
 
 			<h4>Upload.error</h4>
-			The Upload.error prop contains the global error handler function. Override this function for custom error handling
+			The Upload.error prop contains the global error handler function. Override this function for custom error handling.
+
+			<h4>Upload.DragFiles</h4>
+			This prop contains a boolean value defining the existence of file drag event in the browser.
 
 			<h4>Upload.NativeUpload</h4>
-			This prop contains a boolean value defining the existence of the FileReader API in the browser
+			This prop contains a boolean value defining the existence of the FileReader API in the browser.
+
+			<h4>Upload.SingleUpload</h4>
+			This prop contains a boolean value defining the availability of XHR Upload and File Drag and Drop. This allows
+			the upload function to use native upload in chrome/safari, but forces single file uploads at a time.
+
+			<h4>Upload.normalize</h4>
+			Removes single file uploads option, forces frame hack on <b>all</b> browsers that don't support FileReader API.
+
+			<h4>Upload.unnormalize</h4>
+			Allows upload function to use single file uploads hack in chrome/safari.
 
 			<h4>Upload.defaults</h4>
 			There are only two defaults attached to the default prop.
