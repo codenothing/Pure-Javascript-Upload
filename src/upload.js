@@ -111,7 +111,7 @@ function toJSON( str ) {
 
 // Browsers that support native file upload reap the benefits
 
-function NativeUpload ( files, data, action, settings ) {
+function NativeUpload( files, data, action, settings ) {
 	var self = this;
 
 	// Store arguments

@@ -24,27 +24,27 @@
 		</div>
 		<div id='input-upload'>
 			<h3>Upload Files:</h3>
-			<label>
-				<input type='checkbox' name='normalize' id='normalize' /> Normalize
+			<label style='display: none;'>
+				<input type='checkbox' name='normalize' id='normalize' checked='checked' /> Normalize
 			</label>
 			<label>
 				<input type='checkbox' name='json' id='json' /> JSON Response
 			</label>
 			<div class='input-list'>
 				<div class='upload-row'>
-					<input type='file' name='file1' multiple>
+					<input type='file' name='file1'>
 				</div>
 				<div class='upload-row'>
-					<input type='file' name='file2' multiple>
+					<input type='file' name='file2'>
 				</div>
 				<div class='upload-row'>
-					<input type='file' name='file3' multiple>
+					<input type='file' name='file3'>
 				</div>
 				<div class='upload-row'>
-					<input type='file' name='file4' multiple>
+					<input type='file' name='file4'>
 				</div>
 				<div class='upload-row'>
-					<input type='file' name='file5' multiple>
+					<input type='file' name='file5'>
 				</div>
 			</div>
 			<button id='upload-files'>Upload Files</button>
@@ -59,7 +59,7 @@
 		
 		<h2>Documentation</h2>
 
-		<div id='docs'>
+		<div class='docs'>
 
 			<h4 style='margin-top: 10px;'>Upload( files [, data, action, settings ] )</h4>
 

@@ -39,14 +39,9 @@ jQuery(function(){
 		response.html( result || '' );
 	}
 
-	// Normalize file upload
-	norm.click(function(){
-		Upload[ norm.is(':checked') ? 'normalize' : 'unnormalize' ]();
-	});
-
 	// Add drag behavior for browsers that support it
 	if ( Upload.DragFiles ) {
-		drop.show().bind({
+		drop.bind({
 			'dragenter': function(){
 				drop.addClass('hover');
 				return false;
@@ -105,10 +100,35 @@ jQuery(function(){
 		});
 	}
 
+	// FF 3.6+ have the File API Implemented
+	if ( Upload.NativeUpload ) {
+		drop.show();
+		inputs.find('input[type=file]').attr('multiple', 'true');
+	}
+	// Latest WebKit has file drag implemented, but still no File API
+	// So we have a hackjob Single File Upload for those that want, otherwise
+	// we default to using the frame hack for those
+	else if ( Upload.DragFiles ) {
+		// Normalize file upload
+		norm.parent().show();
+		norm.change(function(){
+			if ( norm.is(':checked') ) {
+				Upload.normalize();
+				drop.hide();
+				inputs.find('input[type=file]').removeAttr('multiple');
+			}
+			else {
+				Upload.unnormalize();
+				drop.show();
+				inputs.find('input[type=file]').attr('multiple', 'true');
+			}
+		});
+	}
+
 	jQuery('#upload-files').click(function(){
 		// Extra post data
 		var data = {
-			JSON: !!json.checked,
+			JSON: !!json.is(':checked'),
 			postVar1: 'miscData'
 		};
 
@@ -138,10 +158,13 @@ jQuery(function(){
 		// Clear response area
 		clearResponse();
 
+		// Use the jQuery plugin defined above to upload the files
+		inputs.find('input[type=file]').upload( data, settings );
+
 		// We clear the file inputs in new browsers as they retain value,
 		// and we do a clean search for old browsers that use the frame hack,
 		// and those inputs are cloned and replaced, leaving the files stack useless
-		inputs.find('input[type=file]').upload( data, settings ).each(function(){
+		inputs.find('input[type=file]').each(function(){
 			jQuery( this ).val('');
 		});
 	});
