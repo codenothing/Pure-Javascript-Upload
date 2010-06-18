@@ -200,7 +200,7 @@ window.onload = function(){
 				});
 			}
 			else {
-				Upload.unnormalize();
+				Upload.denormalize();
 				drop.style.display = 'block';
 				each( getFileInputs(), function( i, elem ) {
 					elem.setAttribute( 'multiple', 'true' );

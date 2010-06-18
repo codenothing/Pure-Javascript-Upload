@@ -118,7 +118,7 @@ jQuery(function(){
 				inputs.find('input[type=file]').removeAttr('multiple');
 			}
 			else {
-				Upload.unnormalize();
+				Upload.denormalize();
 				drop.show();
 				inputs.find('input[type=file]').attr('multiple', 'true');
 			}

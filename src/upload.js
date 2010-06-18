@@ -611,7 +611,7 @@ Upload.normalize = function(){
 
 // Configure the handler based on browser support
 
-Upload.unnormalize = function(){
+Upload.ddnormalize = function(){
 	handler = Upload.NativeUpload ? NativeUpload :
 		Upload.DragFiles ? SingleUpload :
 		FrameUpload;
