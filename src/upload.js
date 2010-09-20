@@ -203,7 +203,8 @@ NativeUpload.prototype = {
 	},
 
 	source: function(){
-		var self = this, boundary = self.boundary = '----------------------------------------' + Guid(), counter = 0, source = '';
+		var self = this, counter = 0, source = '',
+			boundary = self.boundary = '----------------------------------------' + Guid();
 
 		// Add each file
 		each( self.read, function( i, read ) {
@@ -468,7 +469,7 @@ FrameUpload.prototype = {
 		}
 
 		// Set the document element
-		doc = self.frame.contentDocument ? self.frame.contentDocument : window.frames[ self.frame.id ].document;
+		doc = self.frame.contentDocument || window.frames[ self.frame.id ].document;
 
 		// fixing Opera 9.26,10.00
 		if ( doc.readyState && doc.readyState != 'complete' ) {
@@ -587,17 +588,14 @@ var Upload = window.Upload = function( files, data, action, settings ) {
 
 // Flag browser capabilities on the exposed Upload Handler
 
-Upload.NativeUpload = !!( 'FileReader' in window );
+Upload.NativeUpload = !!( 'FileReader' in window && 'XMLHttpRequest' in window && typeof ( new XMLHttpRequest() ).sendAsBinary == 'function'  ) ;
 Upload.DragFiles = Upload.NativeUpload || !!( 'ondrag' in document );
 
 
 // Global Error Handler
 
 Upload.error = function( msg ) {
-	msg = typeof msg == 'string' ? new Error( msg ) : msg;
-	if ( fn === undefined ) {
-		throw msg;
-	}
+	throw typeof msg == 'string' ? new Error( msg ) : msg;
 };
 
 
